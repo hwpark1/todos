@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "task": "Python 복습하기",
+    "completed": true
+  },
+  {
+    "id": 2,
+    "task": "Python 복습하기",
+    "completed": true
+  }
+]

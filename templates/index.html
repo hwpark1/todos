@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do 관리 API 테스트</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .add-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        #taskInput {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        #addBtn {
+            padding: 12px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #addBtn:hover {
+            background: #0056b3;
+        }
+        .todo-list {
+            list-style: none;
+            padding: 0;
+        }
+        .todo-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        .todo-item.completed {
+            background: #e8f5e8;
+            border-left-color: #28a745;
+        }
+        .todo-item.completed .task-text {
+            text-decoration: line-through;
+            color: #6c757d;
+        }
+        .task-text {
+            flex: 1;
+            margin: 0 15px;
+            font-size: 16px;
+        }
+        .btn {
+            padding: 8px 12px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-toggle {
+            background: #28a745;
+            color: white;
+        }
+        .btn-toggle:hover {
+            background: #1e7e34;
+        }
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-delete:hover {
+            background: #c82333;
+        }
+        .empty-state {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 40px 0;
+        }
+        .error {
+            color: red;
+            margin: 10px 0;
+            padding: 10px;
+            background: #ffe6e6;
+            border-radius: 4px;
+        }
+        .success {
+            color: green;
+            margin: 10px 0;
+            padding: 10px;
+            background: #e6ffe6;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📝 To-Do 관리 시스템</h1>
+        
+        <div class="add-form">
+            <input type="text" id="taskInput" placeholder="새로운 할일을 입력하세요..." />
+            <button id="addBtn" onclick="addTodo()">추가</button>
+        </div>
+        
+        <div id="message"></div>
+        
+        <ul id="todoList" class="todo-list">
+            <!-- 할일 목록이 여기에 동적으로 추가됩니다 -->
+        </ul>
+        
+        <div id="emptyState" class="empty-state" style="display: none;">
+            아직 할일이 없습니다. 새로운 할일을 추가해보세요!
+        </div>
+    </div>
+
+    <script>
+        // 페이지 로드 시 할일 목록 불러오기
+        window.addEventListener('DOMContentLoaded', loadTodos);
+
+        // 엔터키로 할일 추가
+        document.getElementById('taskInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTodo();
+            }
+        });
+
+        // 할일 목록 불러오기
+        async function loadTodos() {
+            try {
+                const response = await fetch('/todos');
+                const data = await response.json();
+                displayTodos(data.todos || []);
+            } catch (error) {
+                showMessage('할일 목록을 불러오는데 실패했습니다.', 'error');
+            }
+        }
+
+        // 할일 추가
+        async function addTodo() {
+            const taskInput = document.getElementById('taskInput');
+            const task = taskInput.value.trim();
+            
+            if (!task) {
+                showMessage('할일을 입력해주세요.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/todos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ task: task })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    taskInput.value = '';
+                    showMessage('할일이 추가되었습니다.', 'success');
+                    loadTodos(); // 목록 새로고침
+                } else {
+                    showMessage(data.error || '할일 추가에 실패했습니다.', 'error');
+                }
+            } catch (error) {
+                showMessage('할일 추가에 실패했습니다.', 'error');
+            }
+        }
+
+        // 할일 완료/미완료 토글
+        async function toggleTodo(id) {
+            try {
+                const response = await fetch(`/todos/${id}`, {
+                    method: 'PUT'
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage('할일 상태가 변경되었습니다.', 'success');
+                    loadTodos(); // 목록 새로고침
+                } else {
+                    showMessage(data.error || '상태 변경에 실패했습니다.', 'error');
+                }
+            } catch (error) {
+                showMessage('상태 변경에 실패했습니다.', 'error');
+            }
+        }
+
+        // 할일 삭제
+        async function deleteTodo(id) {
+            if (!confirm('정말로 이 할일을 삭제하시겠습니까?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/todos/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage('할일이 삭제되었습니다.', 'success');
+                    loadTodos(); // 목록 새로고침
+                } else {
+                    showMessage(data.error || '삭제에 실패했습니다.', 'error');
+                }
+            } catch (error) {
+                showMessage('삭제에 실패했습니다.', 'error');
+            }
+        }
+
+        // 할일 목록 화면에 표시
+        function displayTodos(todos) {
+            const todoList = document.getElementById('todoList');
+            const emptyState = document.getElementById('emptyState');
+            
+            todoList.innerHTML = '';
+            
+            if (todos.length === 0) {
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            
+            todos.forEach(todo => {
+                const li = document.createElement('li');
+                li.className = `todo-item ${todo.completed ? 'completed' : ''}`;
+                
+                li.innerHTML = `
+                    <span class="task-text">${escapeHtml(todo.task)}</span>
+                    <button class="btn btn-toggle" onclick="toggleTodo(${todo.id})">
+                        ${todo.completed ? '미완료' : '완료'}
+                    </button>
+                    <button class="btn btn-delete" onclick="deleteTodo(${todo.id})">
+                        삭제
+                    </button>
+                `;
+                
+                todoList.appendChild(li);
+            });
+        }
+
+        // 메시지 표시
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = type;
+            messageDiv.textContent = message;
+            
+            // 3초 후 메시지 자동 삭제
+            setTimeout(() => {
+                messageDiv.textContent = '';
+                messageDiv.className = '';
+            }, 3000);
+        }
+
+        // HTML 이스케이프 (XSS 방지)
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
